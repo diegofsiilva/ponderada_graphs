@@ -1,0 +1,30 @@
+{
+  "rastreadores": [
+    { "id": "R-01", "capacidade": 22 },
+    { "id": "R-02", "capacidade": 17 },
+    { "id": "R-03", "capacidade": 28 },
+    { "id": "R-04", "capacidade": 12 },
+    { "id": "R-05", "capacidade": 20 }
+  ],
+  "focos": [
+    { "id": "Foco - UP01", "demanda": 24 },
+    { "id": "Foco - UP02", "demanda": 32 },
+    { "id": "Foco - UP03", "demanda": 16 },
+    { "id": "Foco - UP04", "demanda": 10 }
+  ],
+  "fluxoRecursos": [
+    { "source": "R-01", "target": "Foco - UP01", "value": 8 },
+    { "source": "R-01", "target": "Foco - UP02", "value": 7 },
+    { "source": "R-01", "target": "Foco - UP03", "value": 4 },
+    { "source": "R-02", "target": "Foco - UP02", "value": 9 },
+    { "source": "R-02", "target": "Foco - UP03", "value": 5 },
+    { "source": "R-03", "target": "Foco - UP02", "value": 10 },
+    { "source": "R-03", "target": "Foco - UP01", "value": 9 },
+    { "source": "R-03", "target": "Foco - UP04", "value": 6 },
+    { "source": "R-04", "target": "Foco - UP03", "value": 6 },
+    { "source": "R-04", "target": "Foco - UP04", "value": 4 },
+    { "source": "R-05", "target": "Foco - UP01", "value": 7 },
+    { "source": "R-05", "target": "Foco - UP02", "value": 6 },
+    { "source": "R-05", "target": "Foco - UP04", "value": 5 }
+  ]
+}
