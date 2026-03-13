@@ -1,6 +1,6 @@
-# Mapa 3D de Recursos por UP
+# Ideia 4 - Mapa 3D de Recursos por UP
 
-**Dupla responsável:** Diego Figueiredo Silva, Rafael Josué e Átila Luís Flores Ramos Neto
+**Trio responsável:** Diego Figueiredo Silva, Rafael Josué e Átila Luís Flores Ramos Neto
 
 ---
 
