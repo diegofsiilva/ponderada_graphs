@@ -115,13 +115,38 @@ scene.add(dir);
 // Plano base
 const plane = new THREE.Mesh(
   new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE * 0.75),
-  new THREE.MeshLambertMaterial({ color: "#e2e8f0" })
+  new THREE.MeshLambertMaterial({ color: "#1f9d55" })
 );
 plane.rotation.x = -Math.PI / 2;
 plane.receiveShadow = true;
 scene.add(plane);
 
-const grid = new THREE.GridHelper(MAP_SIZE, 10, "#cbd5e1", "#cbd5e1");
+// Brasil contorno 3D no chão
+const brasilBorder = [
+  { lat: -33.7, lng: -60.0 },
+  { lat: -28.5, lng: -55.0 },
+  { lat: -22.0, lng: -49.0 },
+  { lat: -16.0, lng: -45.0 },
+  { lat: -6.0, lng: -44.5 },
+  { lat: 0.0, lng: -66.0 },
+  { lat: 3.0, lng: -60.0 },
+  { lat: 0.5, lng: -53.0 },
+  { lat: -9.0, lng: -38.0 },
+  { lat: -14.0, lng: -40.0 },
+  { lat: -23.0, lng: -43.0 },
+  { lat: -33.7, lng: -60.0 },
+];
+
+const borderPoints = brasilBorder.map(p => {
+  const pt = toXZ(p.lat, p.lng);
+  return new THREE.Vector3(pt.x, 0.01, pt.z);
+});
+const borderGeo = new THREE.BufferGeometry().setFromPoints(borderPoints);
+const borderMat = new THREE.LineBasicMaterial({ color: 0x065f46, linewidth: 2 });
+const borderLine = new THREE.Line(borderGeo, borderMat);
+scene.add(borderLine);
+
+const grid = new THREE.GridHelper(MAP_SIZE, 10, "#0f5d30", "#0f5d30");
 grid.material.opacity = 0.4;
 grid.material.transparent = true;
 scene.add(grid);
