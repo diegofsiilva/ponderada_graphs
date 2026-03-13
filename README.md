@@ -92,3 +92,16 @@ Para atualizar ou substituir os dados das UPs, basta editar o array `TRACKERS` n
 - Adição de uma linha do tempo para acompanhar a variação de recursos ao longo do período
 
 <img src="/ideia4- rastreadores com mais recursos/mapa1.png">
+
+---
+## Como Executar
+
+Para visualizar o mapa, abra o arquivo `index.html` correspondente em um navegador web moderno.
+
+Para garantir que todas as dependências carreguem corretamente, recomenda-se utilizar a extensão **Live Server** no VS Code:
+
+- Instale a extensão Live Server pelo marketplace do VS Code
+- Abra o arquivo `.html` da visualização
+- Clique com o botão direito no arquivo e selecione **"Open with Live Server"**
+- O mapa abrirá automaticamente no navegador com interatividade completa
+
