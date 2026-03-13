@@ -68,29 +68,6 @@ O ponto central da implementação é garantir que cada coluna apareça **exatam
 
 ---
 
-## Estrutura dos dados
-
-Cada UP é representada por um registro com as seguintes informações:
-
-| Campo | Descrição |
-|---|---|
-| `id` | Identificador da UP |
-| `lat` / `lng` | Coordenadas geográficas |
-| `recursos` | Quantidade de recursos alocados |
-| `cor` | Cor de identificação no mapa |
-
-Para atualizar ou substituir os dados das UPs, basta editar o array `TRACKERS` no início do arquivo HTML com as informações reais de cada unidade.
-
----
-
-## Possíveis evoluções
-
-- Integração com uma API para carregamento dinâmico dos dados de recursos
-- Filtro interativo por quantidade mínima de recursos
-- Exibição de informações adicionais ao clicar em uma UP (fazenda, núcleo, área)
-- Expansão da visualização para outras regiões de operação
-- Adição de uma linha do tempo para acompanhar a variação de recursos ao longo do período
-
 <img src="/ideia4- rastreadores com mais recursos/mapa1.png">
 
 ---
