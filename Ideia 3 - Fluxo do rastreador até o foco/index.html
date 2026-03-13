@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Fluxo de Recursos: Rastreadores x Focos</title>
+    <title>Fluxo de Recursos: Rastreadores x Ocorrências</title>
     <style>
       :root {
         --bg-1: #eef2ff;
@@ -14,7 +14,7 @@
         --panel-border: #cbd5e1;
         --tracker: #0ea5e9;
         --focus: #ef4444;
-        --link: #0f766e;
+        --link: #009c9c;
       }
 
       * {
@@ -155,14 +155,14 @@
   <body>
     <div class="layout">
       <header class="topbar">
-        <h1>Fluxo de Recursos: Rastreadores -> Focos de Incendio</h1>
+        <h1>Fluxo de Recursos: Rastreadores -> Ocorrências de Incêndio</h1>
         <p>Espessura das linhas = volume de recursos enviados</p>
       </header>
 
       <div class="canvas-wrap">
         <svg
           id="flowChart"
-          aria-label="Fluxo de recursos de rastreadores para focos"
+          aria-label="Fluxo de recursos de rastreadores para ocorrências"
         ></svg>
 
         <aside class="legend" id="legend">
@@ -176,7 +176,7 @@
             <span>Foco de incêndio</span>
           </div>
           <div class="legend-item">
-            <span class="swatch" style="background: #0f766e"></span>
+            <span class="swatch" style="background: #009c9c"></span>
             <span>Fluxo de recursos</span>
           </div>
         </aside>
@@ -265,7 +265,7 @@
           .data(graph.links)
           .join("path")
           .attr("d", d3.sankeyLinkHorizontal())
-          .attr("stroke", "#0f766e")
+          .attr("stroke", "#009c9c")
           .attr("stroke-width", (d) => Math.max(1, d.width))
           .attr("fill", "none")
           .attr("stroke-opacity", 0.5)
