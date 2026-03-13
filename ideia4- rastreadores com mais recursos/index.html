@@ -1,447 +1,237 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8"/>
-<title>Mapa 3D Brasil — Recursos por Rastreador</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
-<style>
-* { margin:0; padding:0; box-sizing:border-box; }
-html, body { width:100%; height:100%; overflow:hidden; background:#c8d4dc; }
-
-/* Leaflet sits at the very bottom */
-#map {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
-/* Three.js canvas on top, transparent */
-#three-canvas {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none; /* columns intercept via raycaster */
-}
-
-/* ── Tooltip ── */
-#tooltip {
-  position: fixed;
-  display: none;
-  background: #fff;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font: 12px/1.6 'Segoe UI', sans-serif;
-  color: #1e293b;
-  pointer-events: none;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.15);
-  z-index: 50;
-  min-width: 170px;
-}
-#tooltip .tid  { font-size:13px; font-weight:700; margin-bottom:3px; }
-#tooltip .tval { color:#64748b; }
-#tooltip .tbar { margin-top:7px; height:4px; background:#e2e8f0; border-radius:2px; overflow:hidden; }
-#tooltip .tbar-fill { height:100%; border-radius:2px; transition: width .3s; }
-
-/* ── Legend ── */
-#legend {
-  position: fixed;
-  top: 16px; left: 16px;
-  background: rgba(255,255,255,0.95);
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  padding: 12px 14px;
-  font: 11px/1.7 'Segoe UI', sans-serif;
-  color: #475569;
-  z-index: 20;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
-}
-#legend h3 { font-size:11px; font-weight:700; color:#1e293b; margin-bottom:8px; text-transform:uppercase; letter-spacing:.08em; }
-#legend .item { display:flex; align-items:center; gap:8px; cursor:pointer; padding:2px 4px; border-radius:4px; transition:background .15s; }
-#legend .item:hover { background:rgba(0,0,0,0.04); }
-#legend .dot  { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-
-/* ── Tile controls ── */
-#tiles {
-  position: fixed;
-  bottom: 16px; right: 16px;
-  display: flex; flex-direction: column; gap: 6px;
-  z-index: 20;
-}
-#tiles button {
-  background: rgba(255,255,255,0.93);
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 7px 14px;
-  font: 11px 'Segoe UI', sans-serif;
-  color: #475569;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  transition: all .15s;
-  text-align: left;
-}
-#tiles button:hover, #tiles button.on {
-  background: #fff; border-color: #94a3b8; color: #0f172a;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
-}
-
-/* ── Hint ── */
-#hint {
-  position: fixed;
-  bottom: 16px; left: 50%; transform: translateX(-50%);
-  background: rgba(255,255,255,0.88);
-  border: 1px solid #e2e8f0;
-  border-radius: 20px;
-  padding: 5px 16px;
-  font: 10px 'Segoe UI', sans-serif;
-  color: #94a3b8;
-  z-index: 20;
-  pointer-events: none;
-}
-
-/* ── Tile filter: desaturate like Azure Maps ── */
-.leaflet-tile-pane { filter: saturate(0.18) brightness(1.08); }
-.leaflet-control-zoom, .leaflet-control-attribution { display:none !important; }
-</style>
+  <meta charset="UTF-8" />
+  <title>Mapa 3D — Recursos por Rastreador</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #f1f5f9; font-family: sans-serif; overflow: hidden; }
+    canvas { display: block; }
+    #tooltip {
+      position: fixed;
+      display: none;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: #1e293b;
+      pointer-events: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      z-index: 10;
+    }
+    #tooltip strong { display: block; margin-bottom: 2px; }
+    #legend {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 11px;
+      color: #475569;
+      backdrop-filter: blur(4px);
+    }
+    #legend h3 { font-size: 12px; color: #1e293b; margin-bottom: 8px; }
+    #legend .item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    #legend .dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    #hint {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: rgba(255,255,255,0.8);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 10px;
+      color: #94a3b8;
+    }
+  </style>
 </head>
 <body>
 
-<div id="map"></div>
-<canvas id="three-canvas"></canvas>
-
-<div id="tooltip">
-  <div class="tid"></div>
-  <div class="tval"></div>
-  <div class="tbar"><div class="tbar-fill"></div></div>
-</div>
-
+<div id="tooltip"><strong></strong><span></span></div>
 <div id="legend"><h3>Recursos por Rastreador</h3></div>
+<div id="hint">Arraste para girar · Scroll para zoom</div>
 
-<div id="tiles">
-  <button class="on" onclick="switchTile('osm',this)">🗺 Padrão</button>
-  <button onclick="switchTile('carto',this)">🌫 Claro</button>
-  <button onclick="switchTile('satellite',this)">🛰 Satélite</button>
-  <button onclick="switchTile('topo',this)">🏔 Topográfico</button>
-</div>
-
-<div id="hint">Scroll para zoom · Arraste para inclinar · Clique na legenda para focar</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// ── DATA ──────────────────────────────────────────────────────
 const TRACKERS = [
-  { id:"T-001", lat:-19.8,  lng:-54.1, recursos:8,  cor:"#ef4444" },
-  { id:"T-002", lat:-19.5,  lng:-54.6, recursos:5,  cor:"#f59e0b" },
-  { id:"T-003", lat:-20.2,  lng:-55.0, recursos:12, cor:"#3b82f6" },
-  { id:"T-004", lat:-19.3,  lng:-54.3, recursos:3,  cor:"#10b981" },
-  { id:"T-005", lat:-20.0,  lng:-54.8, recursos:9,  cor:"#8b5cf6" },
-  { id:"T-006", lat:-19.6,  lng:-54.9, recursos:6,  cor:"#f97316" },
-  { id:"T-007", lat:-20.1,  lng:-54.6, recursos:14, cor:"#ec4899" },
-  { id:"T-008", lat:-19.7,  lng:-54.2, recursos:2,  cor:"#06b6d4" },
-  { id:"T-009", lat:-19.9,  lng:-54.4, recursos:7,  cor:"#84cc16" },
-  { id:"T-010", lat:-20.3,  lng:-54.7, recursos:10, cor:"#a855f7" },
+  { id: "T-001", lat: -19.8, lng: -54.1, recursos: 8,  cor: "#ef4444" },
+  { id: "T-002", lat: -19.5, lng: -54.6, recursos: 5,  cor: "#f59e0b" },
+  { id: "T-003", lat: -20.2, lng: -55.0, recursos: 12, cor: "#3b82f6" },
+  { id: "T-004", lat: -19.3, lng: -54.3, recursos: 3,  cor: "#10b981" },
+  { id: "T-005", lat: -20.0, lng: -54.8, recursos: 9,  cor: "#8b5cf6" },
+  { id: "T-006", lat: -19.6, lng: -54.9, recursos: 6,  cor: "#f97316" },
+  { id: "T-007", lat: -20.1, lng: -54.6, recursos: 14, cor: "#ec4899" },
+  { id: "T-008", lat: -19.7, lng: -54.2, recursos: 2,  cor: "#06b6d4" },
+  { id: "T-009", lat: -19.9, lng: -54.4, recursos: 7,  cor: "#84cc16" },
+  { id: "T-010", lat: -20.3, lng: -54.7, recursos: 10, cor: "#a855f7" },
 ];
-const maxR = Math.max(...TRACKERS.map(t => t.recursos));
 
-// ── LEGEND ────────────────────────────────────────────────────
-const legendEl = document.getElementById('legend');
-TRACKERS.forEach((t, i) => {
-  const d = document.createElement('div');
-  d.className = 'item';
-  d.innerHTML = `<span class="dot" style="background:${t.cor}"></span>${t.id} — ${t.recursos} rec`;
-  d.onclick = () => {
-    map.flyTo([t.lat, t.lng], 12, { duration: 0.8 });
-  };
-  legendEl.appendChild(d);
-});
+const LAT_MIN = -20.5, LAT_MAX = -19.0;
+const LNG_MIN = -55.5, LNG_MAX = -53.5;
+const MAP_SIZE = 10;
+const MAX_H = 4;
 
-// ── LEAFLET ───────────────────────────────────────────────────
-const CENTER = [-19.85, -54.55];
-const INIT_ZOOM = 10;
-
-const tileSrc = {
-  osm:       'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-  carto:     'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-  satellite: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-  topo:      'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-};
-
-const map = L.map('map', {
-  center: CENTER, zoom: INIT_ZOOM,
-  zoomControl: false, attributionControl: false,
-});
-let tileLayer = L.tileLayer(tileSrc.osm, { maxZoom:19 }).addTo(map);
-
-function switchTile(key, btn) {
-  document.querySelectorAll('#tiles button').forEach(b => b.classList.remove('on'));
-  btn.classList.add('on');
-  map.removeLayer(tileLayer);
-  tileLayer = L.tileLayer(tileSrc[key], { maxZoom:19 }).addTo(map);
-  const f = key === 'satellite'
-    ? 'saturate(0.5) brightness(0.85)'
-    : 'saturate(0.18) brightness(1.08)';
-  document.querySelectorAll('.leaflet-tile-pane').forEach(p => p.style.filter = f);
+function toXZ(lat, lng) {
+  const x = ((lng - LNG_MIN) / (LNG_MAX - LNG_MIN) - 0.5) * MAP_SIZE;
+  const z = ((lat - LAT_MIN) / (LAT_MAX - LAT_MIN) - 0.5) * -MAP_SIZE;
+  return { x, z };
 }
 
-// ── THREE.JS SETUP ────────────────────────────────────────────
-let W = window.innerWidth, H = window.innerHeight;
-
-const renderer = new THREE.WebGLRenderer({
-  canvas: document.getElementById('three-canvas'),
-  antialias: true,
-  alpha: true,                     // transparent background → map shows through
+// ── Legend ──
+const legend = document.getElementById("legend");
+TRACKERS.forEach(t => {
+  const div = document.createElement("div");
+  div.className = "item";
+  div.innerHTML = `<span class="dot" style="background:${t.cor}"></span>${t.id} — ${t.recursos} recursos`;
+  legend.appendChild(div);
 });
+
+// ── Three.js ──
+const W = window.innerWidth, H = window.innerHeight;
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(W, H);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(devicePixelRatio);
 renderer.shadowMap.enabled = true;
-renderer.setClearColor(0x000000, 0);
+document.body.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
+scene.background = new THREE.Color("#f1f5f9");
+scene.fog = new THREE.Fog("#f1f5f9", 22, 40);
 
-// ── CAMERA: orthographic-ish perspective tilted like Azure Maps ──
-// We use a perspective camera looking down at a tilt angle.
-// The camera is positioned to look at the origin from a south-west elevated angle.
-const camera = new THREE.PerspectiveCamera(38, W/H, 0.01, 500);
+const camera = new THREE.PerspectiveCamera(45, W / H, 0.1, 100);
+camera.position.set(0, 12, 14);
+camera.lookAt(0, 0, 0);
 
-// Tilt state (matches the Azure Maps screenshot: ~40° tilt, slight rotation)
-let camTilt   = 0.72;   // radians from horizontal (0=side, π/2=top-down)
-let camAzim   = 0.0;    // rotation around Y
-let camDist   = 22;
-let camTarget = new THREE.Vector3(0, 0, 0);
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+dir.position.set(8, 16, 8);
+dir.castShadow = true;
+scene.add(dir);
 
-function updateCamera() {
-  camera.position.x = camTarget.x + Math.sin(camAzim) * Math.cos(camTilt) * camDist;
-  camera.position.y = camTarget.y + Math.sin(camTilt) * camDist;
-  camera.position.z = camTarget.z + Math.cos(camAzim) * Math.cos(camTilt) * camDist;
-  camera.lookAt(camTarget);
-}
-updateCamera();
-
-// ── LIGHTS ────────────────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0xffffff, 0.75));
-
-const sun = new THREE.DirectionalLight(0xfff5e0, 1.4);
-sun.position.set(10, 20, 10);
-sun.castShadow = true;
-sun.shadow.mapSize.width  = 2048;
-sun.shadow.mapSize.height = 2048;
-scene.add(sun);
-
-const fill = new THREE.DirectionalLight(0xc8d8f0, 0.5);
-fill.position.set(-10, 8, -5);
-scene.add(fill);
-
-// ── COORDINATE MAPPING ───────────────────────────────────────
-// Map lat/lng → Three.js XZ plane using Leaflet's internal projection.
-// We snapshot the projection at INIT_ZOOM so positions are stable.
-const SCENE_SCALE = 0.012;   // px → Three.js units
-
-function geoToXZ(lat, lng) {
-  // Project to pixel at a fixed zoom level
-  const zoom = INIT_ZOOM;
-  const cPx = map.project(CENTER, zoom);
-  const tPx = map.project([lat, lng], zoom);
-  const x = (tPx.x - cPx.x) * SCENE_SCALE;
-  const z = (tPx.y - cPx.y) * SCENE_SCALE; // y pixel → z axis (south = +z)
-  return [x, z];
-}
-
-// ── BASE PLANE ────────────────────────────────────────────────
-// Thin invisible plane to receive shadows and give ground feel
-const groundMesh = new THREE.Mesh(
-  new THREE.PlaneGeometry(100, 100),
-  new THREE.ShadowMaterial({ opacity: 0.18, transparent: true })
+// Plano base
+const plane = new THREE.Mesh(
+  new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE * 0.75),
+  new THREE.MeshLambertMaterial({ color: "#e2e8f0" })
 );
-groundMesh.rotation.x = -Math.PI / 2;
-groundMesh.position.y = -0.01;
-groundMesh.receiveShadow = true;
-scene.add(groundMesh);
+plane.rotation.x = -Math.PI / 2;
+plane.receiveShadow = true;
+scene.add(plane);
 
-// ── BUILD CYLINDERS ───────────────────────────────────────────
-const MAX_CYL_H  = 4.5;     // max cylinder height in scene units
-const CYL_RADIUS = 0.22;
-const CYL_SEGS   = 32;
+const grid = new THREE.GridHelper(MAP_SIZE, 10, "#cbd5e1", "#cbd5e1");
+grid.material.opacity = 0.4;
+grid.material.transparent = true;
+scene.add(grid);
 
-const cylinders = [];
-const clickMeshes = [];
+// Colunas
+const maxR = Math.max(...TRACKERS.map(t => t.recursos));
+const columns = [];
 
 TRACKERS.forEach((t, i) => {
-  const [x, z] = geoToXZ(t.lat, t.lng);
-  const targetH = (t.recursos / maxR) * MAX_CYL_H;
+  const { x, z } = toXZ(t.lat, t.lng);
+  const h = (t.recursos / maxR) * MAX_H;
 
-  // ── Cylinder body ──
-  const bodyGeo = new THREE.CylinderGeometry(CYL_RADIUS, CYL_RADIUS * 1.05, 1, CYL_SEGS);
-  const bodyMat = new THREE.MeshPhongMaterial({
-    color:    new THREE.Color(t.cor),
-    emissive: new THREE.Color(t.cor).multiplyScalar(0.08),
-    shininess: 60,
-    specular:  new THREE.Color(0xffffff).multiplyScalar(0.3),
-  });
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.scale.y  = 0;          // animated to targetH
-  body.position.set(x, 0, z);
-  body.castShadow = true;
-  body.receiveShadow = false;
-  body.userData = { tracker: t, index: i };
-  scene.add(body);
-  clickMeshes.push(body);
+  const mesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.22, h, 16),
+    new THREE.MeshLambertMaterial({ color: t.cor })
+  );
+  mesh.position.set(x, h / 2, z);
+  mesh.castShadow = true;
+  mesh.userData = t;
+  mesh.scale.y = 0;
+  scene.add(mesh);
 
-  // ── Top cap (flat disk, slightly lighter) ──
-  const capGeo = new THREE.CylinderGeometry(CYL_RADIUS * 1.05, CYL_RADIUS * 1.05, 0.04, CYL_SEGS);
-  const capMat = new THREE.MeshPhongMaterial({
-    color:    new THREE.Color(t.cor).lerp(new THREE.Color(0xffffff), 0.35),
-    emissive: new THREE.Color(t.cor).multiplyScalar(0.25),
-    shininess: 90,
-  });
-  const cap = new THREE.Mesh(capGeo, capMat);
-  cap.position.set(x, 0, z);
-  cap.castShadow = false;
-  scene.add(cap);
+  // Disco base
+  const disk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.28, 0.28, 0.04, 16),
+    new THREE.MeshLambertMaterial({ color: t.cor, transparent: true, opacity: 0.5 })
+  );
+  disk.position.set(x, 0.02, z);
+  scene.add(disk);
 
-  // ── Base ring (halo on ground) ──
-  const ringGeo = new THREE.TorusGeometry(CYL_RADIUS * 1.5, 0.025, 6, 32);
-  const ringMat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(t.cor),
-    transparent: true, opacity: 0.5,
-  });
-  const ring = new THREE.Mesh(ringGeo, ringMat);
-  ring.rotation.x = Math.PI / 2;
-  ring.position.set(x, 0.001, z);
-  scene.add(ring);
-
-  cylinders.push({ body, cap, ring, targetH, x, z, progress: 0 });
+  columns.push({ mesh, targetH: h / 2, delay: i * 3 });
 });
 
-// ── TOOLTIP & RAYCASTER ───────────────────────────────────────
-const raycaster  = new THREE.Raycaster();
-const mouseNDC   = new THREE.Vector2();
-const tooltipEl  = document.getElementById('tooltip');
-let hoveredMesh  = null;
+// ── Raycaster / Tooltip ──
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+const tooltip = document.getElementById("tooltip");
+let hovered = null;
 
-window.addEventListener('mousemove', e => {
-  mouseNDC.x = (e.clientX / W) * 2 - 1;
-  mouseNDC.y = -(e.clientY / H) * 2 + 1;
-  raycaster.setFromCamera(mouseNDC, camera);
-  const hits = raycaster.intersectObjects(clickMeshes);
+renderer.domElement.addEventListener("mousemove", e => {
+  mouse.x = (e.clientX / W) * 2 - 1;
+  mouse.y = -(e.clientY / H) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(columns.map(c => c.mesh));
 
   if (hits.length) {
-    const mesh = hits[0].object;
-    if (mesh !== hoveredMesh) {
-      if (hoveredMesh) hoveredMesh.material.emissive.setScalar(0.08);
-      hoveredMesh = mesh;
-      hoveredMesh.material.emissive.set(hoveredMesh.userData.tracker.cor);
-      hoveredMesh.material.emissiveIntensity = 0.3;
+    const m = hits[0].object;
+    if (m !== hovered) {
+      if (hovered) hovered.material.emissive.set(0x000000);
+      hovered = m;
+      hovered.material.emissive.set(0x333333);
     }
-    const t = mesh.userData.tracker;
-    tooltipEl.style.display = 'block';
-    tooltipEl.style.left = (e.clientX + 18) + 'px';
-    tooltipEl.style.top  = (e.clientY - 10) + 'px';
-    tooltipEl.querySelector('.tid').textContent  = t.id;
-    tooltipEl.querySelector('.tval').textContent = t.recursos + ' recursos alocados';
-    const fill2 = tooltipEl.querySelector('.tbar-fill');
-    fill2.style.width      = ((t.recursos / maxR) * 100) + '%';
-    fill2.style.background = t.cor;
-    document.body.style.cursor = 'pointer';
+    const t = m.userData;
+    tooltip.style.display = "block";
+    tooltip.style.left = (e.clientX + 14) + "px";
+    tooltip.style.top = (e.clientY - 10) + "px";
+    tooltip.querySelector("strong").textContent = t.id;
+    tooltip.querySelector("span").textContent = t.recursos + " recursos alocados";
   } else {
-    if (hoveredMesh) {
-      hoveredMesh.material.emissive.setHex(
-        new THREE.Color(hoveredMesh.userData.tracker.cor).multiplyScalar(0.08).getHex()
-      );
-      hoveredMesh.material.emissiveIntensity = 1;
-      hoveredMesh = null;
-    }
-    tooltipEl.style.display = 'none';
-    document.body.style.cursor = '';
+    if (hovered) { hovered.material.emissive.set(0x000000); hovered = null; }
+    tooltip.style.display = "none";
   }
 });
 
-// ── CAMERA DRAG (tilt + rotate) ───────────────────────────────
-let isDragging = false, lastX = 0, lastY = 0;
+// ── Orbit ──
+let drag = false, px = 0, py = 0, rotX = 0.55, rotY = 0.3, zoom = 18;
 
-window.addEventListener('mousedown', e => {
-  isDragging = true; lastX = e.clientX; lastY = e.clientY;
-});
-window.addEventListener('mouseup',   () => isDragging = false);
-window.addEventListener('mousemove', e => {
-  if (!isDragging) return;
-  const dx = e.clientX - lastX;
-  const dy = e.clientY - lastY;
-  lastX = e.clientX; lastY = e.clientY;
-  camAzim += dx * 0.004;
-  camTilt  = Math.max(0.15, Math.min(1.45, camTilt - dy * 0.004));
-  updateCamera();
-  repositionColumns(); // reproject when camera doesn't move map
-});
-
-// ── SCROLL ZOOM ───────────────────────────────────────────────
-window.addEventListener('wheel', e => {
-  camDist = Math.max(5, Math.min(40, camDist + e.deltaY * 0.03));
-  updateCamera();
-  // Also zoom leaflet to match
-  const leafZoom = Math.round(INIT_ZOOM - Math.log2(camDist / 22) * 1.8);
-  map.setZoom(Math.max(6, Math.min(16, leafZoom)), { animate: false });
-}, { passive: true });
-
-// ── REPROJECT CYLINDERS ───────────────────────────────────────
-// When Leaflet map is panned/zoomed, recompute XZ positions
-function repositionColumns() {
-  cylinders.forEach((c, i) => {
-    const t = TRACKERS[i];
-    const [x, z] = geoToXZ(t.lat, t.lng);
-    c.x = x; c.z = z;
-    c.body.position.x = x; c.body.position.z = z;
-    c.cap.position.x  = x; c.cap.position.z  = z;
-    c.ring.position.x = x; c.ring.position.z = z;
-  });
+function updateCam() {
+  camera.position.x = Math.sin(rotY) * Math.cos(rotX) * zoom;
+  camera.position.y = Math.sin(rotX) * zoom;
+  camera.position.z = Math.cos(rotY) * Math.cos(rotX) * zoom;
+  camera.lookAt(0, 0, 0);
 }
-map.on('move zoom moveend', repositionColumns);
+updateCam();
 
-// ── ANIMATION LOOP ────────────────────────────────────────────
-const RISE_MS   = 1400;
-const STAGGER   = 90;
-const START_T   = performance.now();
-let   frameIdx  = 0;
+renderer.domElement.addEventListener("mousedown", e => { drag = true; px = e.clientX; py = e.clientY; });
+window.addEventListener("mouseup", () => drag = false);
+window.addEventListener("mousemove", e => {
+  if (!drag) return;
+  rotY += (e.clientX - px) * 0.005;
+  rotX = Math.max(0.15, Math.min(1.3, rotX + (e.clientY - py) * 0.005));
+  px = e.clientX; py = e.clientY;
+  updateCam();
+});
+renderer.domElement.addEventListener("wheel", e => {
+  zoom = Math.max(8, Math.min(24, zoom + e.deltaY * 0.02));
+  updateCam();
+});
 
-function animate(now) {
-  requestAnimationFrame(animate);
-  frameIdx++;
-
-  const elapsed = now - START_T;
-
-  cylinders.forEach((c, i) => {
-    // Rise animation with easeOutCubic + stagger
-    const local = Math.max(0, elapsed - i * STAGGER);
-    const frac  = Math.min(1, local / RISE_MS);
-    const ease  = 1 - Math.pow(1 - frac, 3);
-    const h     = c.targetH * ease;
-
-    c.progress = ease;
-
-    // Scale body: cylinder geo is height=1, so scale.y = actual height
-    c.body.scale.y  = Math.max(0.001, h);
-    c.body.position.y = h / 2;   // keep base on ground
-
-    // Cap sits on top
-    c.cap.position.y = h + 0.02;
-
-    // Pulse ring
-    const pulse = 1 + Math.sin(frameIdx * 0.04 + i * 0.7) * 0.12;
-    c.ring.scale.set(pulse, 1, pulse);
-    c.ring.material.opacity = 0.3 + Math.sin(frameIdx * 0.04 + i) * 0.18;
-  });
-
-  renderer.render(scene, camera);
-}
-requestAnimationFrame(animate);
-
-// ── RESIZE ────────────────────────────────────────────────────
-window.addEventListener('resize', () => {
-  W = window.innerWidth; H = window.innerHeight;
-  renderer.setSize(W, H);
-  camera.aspect = W / H;
+// ── Resize ──
+window.addEventListener("resize", () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
 });
+
+// ── Animate ──
+let frame = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  frame++;
+  columns.forEach(({ mesh, targetH, delay }) => {
+    if (frame > delay) {
+      mesh.scale.y = Math.min(1, mesh.scale.y + 0.05);
+      mesh.position.y = targetH * mesh.scale.y;
+    }
+  });
+  renderer.render(scene, camera);
+}
+animate();
 </script>
 </body>
 </html>
