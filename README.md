@@ -91,4 +91,4 @@ Para atualizar ou substituir os dados das UPs, basta editar o array `TRACKERS` n
 - Expansão da visualização para outras regiões de operação
 - Adição de uma linha do tempo para acompanhar a variação de recursos ao longo do período
 
-<img src="/ideia4- rastreadores com mais recursos/mapa.png">
+<img src="/ideia4- rastreadores com mais recursos/mapa1.png">
