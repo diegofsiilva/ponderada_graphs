@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fluxo de Recursos: Rastreadores x Ocorrências</title>
+    <style>
+      :root {
+        --bg-1: #eef2ff;
+        --bg-2: #f8fafc;
+        --ink: #0f172a;
+        --muted: #334155;
+        --panel: rgba(255, 255, 255, 0.86);
+        --panel-border: #cbd5e1;
+        --tracker: #0ea5e9;
+        --focus: #ef4444;
+        --link: #009c9c;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        min-height: 100vh;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 20% 10%, #dbeafe 0%, transparent 35%),
+          radial-gradient(circle at 80% 70%, #dcfce7 0%, transparent 38%),
+          linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 100%);
+        overflow: hidden;
+      }
+
+      .layout {
+        display: grid;
+        grid-template-rows: auto 1fr;
+        height: 100vh;
+      }
+
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 18px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--panel-border);
+        backdrop-filter: blur(6px);
+      }
+
+      .topbar h1 {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+      }
+
+      .topbar p {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .canvas-wrap {
+        position: relative;
+        padding: 10px;
+      }
+
+      svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+        border: 1px solid #dbe4f0;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.68);
+      }
+
+      .legend {
+        position: absolute;
+        top: 22px;
+        left: 22px;
+        background: var(--panel);
+        border: 1px solid var(--panel-border);
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 12px;
+        color: #1e293b;
+        min-width: 210px;
+        box-shadow: 0 8px 24px rgba(2, 6, 23, 0.08);
+      }
+
+      .legend h2 {
+        font-size: 12px;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.7px;
+        color: #334155;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 4px 0;
+      }
+
+      .swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
+
+      .tooltip {
+        position: fixed;
+        pointer-events: none;
+        display: none;
+        z-index: 5;
+        max-width: 290px;
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+        padding: 9px 11px;
+        font-size: 12px;
+        color: #0f172a;
+        line-height: 1.4;
+      }
+
+      .hint {
+        position: absolute;
+        right: 22px;
+        bottom: 22px;
+        font-size: 11px;
+        color: #475569;
+        background: rgba(248, 250, 252, 0.9);
+        border: 1px solid #cbd5e1;
+        padding: 8px 10px;
+        border-radius: 8px;
+      }
+
+      @media (max-width: 860px) {
+        .topbar {
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 6px;
+        }
+
+        .legend {
+          min-width: 180px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <header class="topbar">
+        <h1>Fluxo de Recursos: Rastreadores -> Ocorrências de Incêndio</h1>
+        <p>Espessura das linhas = volume de recursos enviados</p>
+      </header>
+
+      <div class="canvas-wrap">
+        <svg
+          id="flowChart"
+          aria-label="Fluxo de recursos de rastreadores para ocorrências"
+        ></svg>
+
+        <aside class="legend" id="legend">
+          <h2>Legenda</h2>
+          <div class="legend-item">
+            <span class="swatch" style="background: #0ea5e9"></span>
+            <span>Rastreador</span>
+          </div>
+          <div class="legend-item">
+            <span class="swatch" style="background: #ef4444"></span>
+            <span>Foco de incêndio</span>
+          </div>
+          <div class="legend-item">
+            <span class="swatch" style="background: #009c9c"></span>
+            <span>Fluxo de recursos</span>
+          </div>
+        </aside>
+
+        <div class="hint">
+          Passe o mouse nos blocos e fluxos para ver detalhes
+        </div>
+      </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+    <script>
+      // Estrutura igual ao exemplo do d3-graph-gallery
+      const nodes = [
+        { name: "R-01" },
+        { name: "R-02" },
+        { name: "R-03" },
+        { name: "R-04" },
+        { name: "R-05" },
+        { name: "Foco - UP01" },
+        { name: "Foco - UP02" },
+        { name: "Foco - UP03" },
+        { name: "Foco - UP04" },
+      ];
+
+      // Links com indices, igual ao tutorial
+      const links = [
+        { source: 0, target: 5, value: 8 },
+        { source: 0, target: 6, value: 7 },
+        { source: 0, target: 7, value: 4 },
+        { source: 1, target: 6, value: 9 },
+        { source: 1, target: 7, value: 5 },
+        { source: 2, target: 6, value: 10 },
+        { source: 2, target: 5, value: 9 },
+        { source: 2, target: 8, value: 6 },
+        { source: 3, target: 7, value: 6 },
+        { source: 3, target: 8, value: 4 },
+        { source: 4, target: 5, value: 7 },
+        { source: 4, target: 6, value: 6 },
+        { source: 4, target: 8, value: 5 },
+      ];
+
+      const svg = d3.select("#flowChart");
+      const tooltip = d3.select("#tooltip");
+
+      function showTooltip(event, html) {
+        tooltip
+          .style("display", "block")
+          .style("left", event.clientX + 14 + "px")
+          .style("top", event.clientY - 8 + "px")
+          .html(html);
+      }
+
+      function hideTooltip() {
+        tooltip.style("display", "none");
+      }
+
+      function buildGraphData() {
+        return { nodes, links };
+      }
+
+      function render() {
+        const { width, height } = document
+          .getElementById("flowChart")
+          .getBoundingClientRect();
+        svg.selectAll("*").remove();
+
+        const sankey = d3
+          .sankey()
+          .nodeWidth(22)
+          .nodePadding(Math.max(14, height * 0.04))
+          .extent([
+            [30, 24],
+            [width - 30, height - 24],
+          ]);
+
+        const graph = sankey(buildGraphData());
+
+        // Links
+        svg
+          .append("g")
+          .selectAll("path")
+          .data(graph.links)
+          .join("path")
+          .attr("d", d3.sankeyLinkHorizontal())
+          .attr("stroke", "#009c9c")
+          .attr("stroke-width", (d) => Math.max(1, d.width))
+          .attr("fill", "none")
+          .attr("stroke-opacity", 0.5)
+          .on("mousemove", (event, d) => {
+            d3.select(event.currentTarget).attr("stroke-opacity", 0.9);
+            showTooltip(
+              event,
+              `<strong>Fluxo</strong><br>Origem: ${d.source.name}<br>Destino: ${d.target.name}<br>Recursos: <b>${d.value}</b>`,
+            );
+          })
+          .on("mouseleave", (event) => {
+            d3.select(event.currentTarget).attr("stroke-opacity", 0.5);
+            hideTooltip();
+          });
+
+        // Nodes
+        const node = svg.append("g").selectAll("g").data(graph.nodes).join("g");
+
+        node
+          .append("rect")
+          .attr("x", (d) => d.x0)
+          .attr("y", (d) => d.y0)
+          .attr("height", (d) => Math.max(2, d.y1 - d.y0))
+          .attr("width", (d) => d.x1 - d.x0)
+          .attr("rx", 5)
+          .attr("fill", (d) =>
+            d.index < 5 ? "var(--tracker)" : "var(--focus)",
+          )
+          .attr("stroke", "#0f172a")
+          .attr("stroke-opacity", 0.22)
+          .on("mousemove", (event, d) => {
+            const recebido = d.targetLinks
+              ? d3.sum(d.targetLinks, (x) => x.value)
+              : 0;
+            const enviado = d.sourceLinks
+              ? d3.sum(d.sourceLinks, (x) => x.value)
+              : 0;
+            showTooltip(
+              event,
+              `<strong>${d.name}</strong><br>Tipo: ${d.index < 5 ? "rastreador" : "foco"}<br>Enviado: <b>${enviado}</b><br>Recebido: <b>${recebido}</b>`,
+            );
+          })
+          .on("mouseleave", hideTooltip);
+
+        node
+          .append("text")
+          .attr("x", (d) => (d.x0 < width / 2 ? d.x1 + 8 : d.x0 - 8))
+          .attr("y", (d) => (d.y1 + d.y0) / 2)
+          .attr("dy", "0.35em")
+          .attr("text-anchor", (d) => (d.x0 < width / 2 ? "start" : "end"))
+          .attr("font-size", 12)
+          .attr("fill", "#0f172a")
+          .text((d) => d.name);
+      }
+
+      render();
+      window.addEventListener("resize", render);
+    </script>
+  </body>
+</html>

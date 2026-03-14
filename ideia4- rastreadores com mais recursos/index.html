@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Mapa 3D — Recursos por Rastreador</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#f1f5f9; font-family:sans-serif; overflow:hidden; }
+    canvas { display:block; }
+
+    #tooltip {
+      position:fixed; display:none;
+      background:white; border:1px solid #e2e8f0;
+      border-radius:8px; padding:8px 12px;
+      font-size:12px; color:#1e293b;
+      pointer-events:none;
+      box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:10;
+    }
+    #tooltip strong { display:block; margin-bottom:2px; }
+
+    #legend {
+      position:fixed; top:16px; left:16px;
+      background:rgba(255,255,255,0.92);
+      border:1px solid #e2e8f0; border-radius:10px;
+      padding:12px 14px; font-size:11px; color:#475569;
+      backdrop-filter:blur(4px); z-index:10;
+    }
+    #legend h3 { font-size:12px; color:#1e293b; margin-bottom:8px; }
+    #legend .item { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+    #legend .dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+
+    #hint {
+      position:fixed; bottom:16px; right:16px;
+      background:rgba(255,255,255,0.8); border-radius:8px;
+      padding:6px 10px; font-size:10px; color:#94a3b8;
+    }
+
+    #loading {
+      position:fixed; inset:0; background:#f1f5f9;
+      display:flex; flex-direction:column;
+      align-items:center; justify-content:center;
+      gap:14px; z-index:100; font-size:14px; color:#64748b;
+      transition:opacity .4s;
+    }
+    .spinner {
+      width:36px; height:36px;
+      border:3px solid #e2e8f0; border-top-color:#64748b;
+      border-radius:50%; animation:spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<div id="loading"><div class="spinner"></div>Carregando mapa do MS…</div>
+<div id="tooltip"><strong></strong><span></span></div>
+<div id="legend"><h3>Recursos por Rastreador</h3></div>
+<div id="hint">Arraste para girar · Scroll para zoom</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script>
+// ═══════════════════════════════════════════════
+// TRACKERS — spread across different MS regions
+// ═══════════════════════════════════════════════
+const TRACKERS = [
+  { id:"T-001", lat:-20.47, lng:-54.62, recursos:8,  cor:"#ef4444" }, // Campo Grande
+  { id:"T-002", lat:-22.22, lng:-54.81, recursos:5,  cor:"#f59e0b" }, // Dourados
+  { id:"T-003", lat:-20.78, lng:-51.70, recursos:12, cor:"#3b82f6" }, // Três Lagoas
+  { id:"T-004", lat:-19.01, lng:-57.65, recursos:3,  cor:"#10b981" }, // Corumbá
+  { id:"T-005", lat:-22.54, lng:-55.73, recursos:9,  cor:"#8b5cf6" }, // Ponta Porã
+  { id:"T-006", lat:-20.47, lng:-55.79, recursos:6,  cor:"#f97316" }, // Aquidauana
+  { id:"T-007", lat:-23.07, lng:-54.20, recursos:14, cor:"#ec4899" }, // Naviraí
+  { id:"T-008", lat:-19.67, lng:-51.19, recursos:2,  cor:"#06b6d4" }, // Paranaíba
+  { id:"T-009", lat:-18.79, lng:-52.63, recursos:7,  cor:"#84cc16" }, // Chapadão do Sul
+  { id:"T-010", lat:-18.50, lng:-54.76, recursos:10, cor:"#a855f7" }, // Coxim
+];
+const maxR = Math.max(...TRACKERS.map(t => t.recursos));
+
+// Legend
+const legendEl = document.getElementById('legend');
+TRACKERS.forEach(t => {
+  const div = document.createElement('div');
+  div.className = 'item';
+  div.innerHTML = `<span class="dot" style="background:${t.cor}"></span>${t.id} — ${t.recursos} recursos`;
+  legendEl.appendChild(div);
+});
+
+// ═══════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════
+const TEX   = 2048;
+const PLANE = 14;
+const MAX_H = 4;
+
+// ═══════════════════════════════════════════════
+// CHOROPLETH COLOR SCALE for municipalities
+// ═══════════════════════════════════════════════
+// We'll use a qualitative palette cycling through regions
+// and a D3 sequential scale for a natural map look
+const munColors = [
+  "#a8d5a2","#8ecf88","#74c96e","#9fd494","#b8ddb3",
+  "#c5e4c0","#aed9a8","#96cf90","#7ec878","#68c262",
+  "#b5deb0","#9ed498","#87ca80","#70c068","#5ab650",
+  "#c8e6c9","#b2dfdb","#b3e5fc","#dcedc8","#f0f4c3",
+  "#ffe0b2","#ffccbc","#f8bbd0","#e1bee7","#d1c4e9",
+  "#bbdefb","#b2ebf2","#b2dfdb","#c8e6c9","#dcedc8",
+  "#fff9c4","#fff3e0","#fce4ec","#f3e5f5","#e8eaf6",
+  "#e3f2fd","#e0f7fa","#e0f2f1","#f1f8e9","#f9fbe7",
+  "#fffde7","#fff8e1","#fbe9e7","#fce4ec","#f8bbd0",
+  "#e1f5fe","#e8f5e9","#f3e5f5","#ede7f6","#e8eaf6",
+  "#efebe9","#fafafa","#eceff1","#e0e0e0","#bdbdbd",
+  "#a5d6a7","#80cbc4","#81d4fa","#ce93d8","#ffab91",
+  "#aed581","#4fc3f7","#f48fb1","#ffe082","#80deea",
+  "#c5e1a5","#4dd0e1","#f06292","#ffd54f","#4db6ac",
+  "#9ccc65","#26c6da","#ec407a","#ffca28","#26a69a",
+  "#8bc34a","#00bcd4","#e91e63","#ffc107","#009688",
+  "#76ac3a","#00acc1","#d81b60","#ffb300","#00897b",
+  "#689f38","#0097a7","#c2185b","#ffa000","#00796b",
+  "#558b2f","#00838f","#ad1457","#ff8f00","#00695c",
+  "#33691e","#006064","#880e4f","#ff6f00","#004d40",
+];
+
+// ═══════════════════════════════════════════════
+// LOAD GEOJSON
+// ═══════════════════════════════════════════════
+const GEO_URL = "https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-50-mun.json";
+
+d3.json(GEO_URL).then(geo => boot(geo)).catch(() => boot(null));
+
+function boot(geo) {
+
+  // ── D3 projection ──
+  const msBounds = {
+    type:"Feature",
+    geometry:{ type:"Polygon", coordinates:[[
+      [-58.5,-17.2],[-50.9,-17.2],[-50.9,-24.1],[-58.5,-24.1],[-58.5,-17.2]
+    ]]}
+  };
+  const projection = d3.geoMercator().fitSize([TEX, TEX], msBounds);
+  const pathGen    = d3.geoPath().projection(projection);
+
+  function geoToScene(lng, lat) {
+    const [px, py] = projection([lng, lat]);
+    return { x: (px/TEX - 0.5)*PLANE, z: (py/TEX - 0.5)*PLANE };
+  }
+
+  // ── Build canvas texture ──
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = TEX;
+  const ctx = canvas.getContext('2d');
+
+  // Ocean / outside background
+  ctx.fillStyle = '#b0c4d8';
+  ctx.fillRect(0, 0, TEX, TEX);
+
+  if (geo) {
+    // Assign a color per municipality (choropleth feel)
+    // Sort features by name so color assignment is stable
+    const sorted = [...geo.features].sort((a,b) =>
+      (a.properties.name||'').localeCompare(b.properties.name||'')
+    );
+
+    sorted.forEach((f, i) => {
+      ctx.beginPath();
+      pathGen.context(ctx)(f);
+      ctx.fillStyle   = munColors[i % munColors.length];
+      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+      ctx.lineWidth   = 1.2;
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    // State outer border — bold on top
+    ctx.beginPath();
+    geo.features.forEach(f => pathGen.context(ctx)(f));
+    ctx.strokeStyle = '#1a5c34';
+    ctx.lineWidth   = 3.5;
+    ctx.lineJoin    = 'round';
+    ctx.stroke();
+
+    // Municipality labels (only larger ones)
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font         = 'bold 11px sans-serif';
+
+    geo.features.forEach(f => {
+      const centroid = pathGen.centroid(f);
+      if (!centroid || isNaN(centroid[0])) return;
+      const bounds = pathGen.bounds(f);
+      const w = bounds[1][0] - bounds[0][0];
+      const h = bounds[1][1] - bounds[0][1];
+      if (w < 28 || h < 18) return; // skip tiny municipalities
+      const name = (f.properties.name || '').split(' ')[0]; // first word only
+      ctx.fillStyle   = 'rgba(0,0,0,0.55)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+      ctx.lineWidth   = 3;
+      ctx.strokeText(name, centroid[0], centroid[1]);
+      ctx.fillText(name, centroid[0], centroid[1]);
+    });
+
+  } else {
+    // Fallback polygon
+    const msSimple = { type:"Feature", geometry:{ type:"Polygon", coordinates:[[
+      [-53.2,-17.3],[-54.3,-17.0],[-55.0,-17.1],[-57.0,-17.6],[-57.6,-18.0],
+      [-58.0,-19.0],[-57.9,-20.0],[-57.5,-20.5],[-57.2,-21.3],[-56.5,-22.2],
+      [-55.7,-22.7],[-55.0,-22.7],[-54.3,-23.0],[-53.8,-23.6],[-53.0,-23.5],
+      [-52.5,-22.5],[-52.2,-21.3],[-52.0,-20.5],[-51.7,-19.7],[-51.5,-18.8],
+      [-52.0,-18.2],[-52.5,-17.8],[-53.2,-17.3],
+    ]]}};
+    ctx.beginPath(); pathGen.context(ctx)(msSimple);
+    ctx.fillStyle = '#c8e6c9'; ctx.fill();
+    ctx.strokeStyle = '#2d7a4f'; ctx.lineWidth = 2; ctx.stroke();
+  }
+
+  // Tracker dots on texture
+  TRACKERS.forEach(t => {
+    const [px, py] = projection([t.lng, t.lat]);
+    ctx.beginPath(); ctx.arc(px, py, 8, 0, Math.PI*2);
+    ctx.fillStyle = t.cor; ctx.fill();
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2.5; ctx.stroke();
+  });
+
+  // ── THREE.JS ──────────────────────────────────
+  let W = window.innerWidth, H = window.innerHeight;
+
+  const renderer = new THREE.WebGLRenderer({ antialias:true });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+  document.body.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color('#f1f5f9');
+  scene.fog        = new THREE.Fog('#f1f5f9', 30, 55);
+
+  const camera = new THREE.PerspectiveCamera(45, W/H, 0.1, 100);
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+  const sun = new THREE.DirectionalLight(0xffffff, 1.2);
+  sun.position.set(8, 18, 8);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left:-12, right:12, top:12, bottom:-12 });
+  scene.add(sun);
+
+  // Rim light from the opposite side for depth
+  const rim = new THREE.DirectionalLight(0xddeeff, 0.35);
+  rim.position.set(-8, 6, -6);
+  scene.add(rim);
+
+  // Map plane
+  const tex3 = new THREE.CanvasTexture(canvas);
+  tex3.anisotropy = renderer.capabilities.getMaxAnisotropy();
+
+  const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(PLANE, PLANE),
+    new THREE.MeshLambertMaterial({ map: tex3 })
+  );
+  plane.rotation.x  = -Math.PI / 2;
+  plane.receiveShadow = true;
+  scene.add(plane);
+
+  // Cylinders
+  const columns = [];
+
+  TRACKERS.forEach((t, i) => {
+    const { x, z } = geoToScene(t.lng, t.lat);
+    const h = (t.recursos / maxR) * MAX_H;
+
+    // Main cylinder
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.13, 0.16, h, 28),
+      new THREE.MeshPhongMaterial({
+        color:     new THREE.Color(t.cor),
+        emissive:  new THREE.Color(t.cor).multiplyScalar(0.04),
+        shininess: 60,
+        specular:  new THREE.Color(0xffffff).multiplyScalar(0.2),
+      })
+    );
+    mesh.position.set(x, h/2, z);
+    mesh.castShadow = true;
+    mesh.userData   = t;
+    mesh.scale.y    = 0;
+    scene.add(mesh);
+
+    // Top cap
+    const cap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.16, 0.16, 0.06, 28),
+      new THREE.MeshPhongMaterial({
+        color:    new THREE.Color(t.cor).lerp(new THREE.Color(0xffffff), 0.35),
+        emissive: new THREE.Color(t.cor).multiplyScalar(0.15),
+        shininess: 90,
+      })
+    );
+    cap.position.set(x, h + 0.03, z);
+    cap.userData = t;
+    scene.add(cap);
+
+    // Base disk
+    const disk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.22, 0.22, 0.03, 28),
+      new THREE.MeshLambertMaterial({ color: t.cor, transparent:true, opacity:0.45 })
+    );
+    disk.position.set(x, 0.015, z);
+    scene.add(disk);
+
+    columns.push({ mesh, cap, targetH: h, h2: h/2, delay: i * 4 });
+  });
+
+  // Raycaster
+  const raycaster = new THREE.Raycaster();
+  const mouse     = new THREE.Vector2();
+  const tooltip   = document.getElementById('tooltip');
+  const allMeshes = columns.map(c => c.mesh);
+  let hovered     = null;
+
+  renderer.domElement.addEventListener('mousemove', e => {
+    mouse.x =  (e.clientX / W) * 2 - 1;
+    mouse.y = -(e.clientY / H) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(allMeshes);
+    if (hits.length) {
+      const m = hits[0].object;
+      if (m !== hovered) {
+        if (hovered) { hovered.material.emissive.setScalar(0.04); hovered.material.emissiveIntensity = 1; }
+        hovered = m;
+        hovered.material.emissive.set(hovered.userData.cor);
+        hovered.material.emissiveIntensity = 0.25;
+      }
+      const t = m.userData;
+      tooltip.style.display = 'block';
+      tooltip.style.left    = (e.clientX + 14) + 'px';
+      tooltip.style.top     = (e.clientY - 10) + 'px';
+      tooltip.querySelector('strong').textContent = t.id;
+      tooltip.querySelector('span').textContent   = t.recursos + ' recursos disponíveis';
+      document.body.style.cursor = 'pointer';
+    } else {
+      if (hovered) {
+        hovered.material.emissive.setScalar(0.04);
+        hovered.material.emissiveIntensity = 1;
+        hovered = null;
+      }
+      tooltip.style.display       = 'none';
+      document.body.style.cursor  = '';
+    }
+  });
+
+  // Orbit
+  let drag = false, pxM = 0, pyM = 0, rotX = 0.55, rotY = 0.3, zoom = 18;
+  function updateCam() {
+    camera.position.x = Math.sin(rotY) * Math.cos(rotX) * zoom;
+    camera.position.y = Math.sin(rotX) * zoom;
+    camera.position.z = Math.cos(rotY) * Math.cos(rotX) * zoom;
+    camera.lookAt(0, 0, 0);
+  }
+  updateCam();
+  renderer.domElement.addEventListener('mousedown', e => { drag=true; pxM=e.clientX; pyM=e.clientY; });
+  window.addEventListener('mouseup', () => drag=false);
+  window.addEventListener('mousemove', e => {
+    if (!drag) return;
+    rotY += (e.clientX - pxM) * 0.005;
+    rotX  = Math.max(0.15, Math.min(1.3, rotX + (e.clientY - pyM) * 0.005));
+    pxM   = e.clientX; pyM = e.clientY;
+    updateCam();
+  });
+  renderer.domElement.addEventListener('wheel', e => {
+    zoom = Math.max(8, Math.min(28, zoom + e.deltaY * 0.02));
+    updateCam();
+  });
+
+  window.addEventListener('resize', () => {
+    W = window.innerWidth; H = window.innerHeight;
+    renderer.setSize(W, H);
+    camera.aspect = W/H; camera.updateProjectionMatrix();
+  });
+
+  // Animate
+  let frame = 0;
+  function animate() {
+    requestAnimationFrame(animate);
+    frame++;
+    columns.forEach(({ mesh, cap, targetH, h2, delay }) => {
+      if (frame > delay) {
+        mesh.scale.y  = Math.min(1, mesh.scale.y + 0.05);
+        mesh.position.y = h2 * mesh.scale.y;
+        cap.position.y  = targetH * mesh.scale.y + 0.03;
+      }
+    });
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // Hide loader
+  const loader = document.getElementById('loading');
+  loader.style.opacity = '0';
+  setTimeout(() => loader.style.display = 'none', 400);
+}
+</script>
+</body>
+</html>
