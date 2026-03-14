@@ -1,6 +1,6 @@
 const WIDTH = 1200;
 const HEIGHT = 760;
-const MA_GEOJSON_URL = "https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-21-mun.json";
+const MS_GEOJSON_URL = "https://raw.githubusercontent.com/tbrugz/geodata-br/master/geojson/geojs-50-mun.json";
 
 const COLORS = {
   high: "#d93025",
@@ -8,20 +8,20 @@ const COLORS = {
   low: "#4285f4"
 };
 
-// Novas UPs distribuidas no MA com ocorrencias dentro das faixas: 1-10, 11-25 e 26-60.
+// UPs distribuidas no MS com ocorrencias dentro das faixas: 1-10, 11-25 e 26-60.
 const UP_POINTS = [
-  { up: "UP-Litoranea", occurrences: 8, lat: -2.5307, lon: -44.3068 },
-  { up: "UP-Itapecuru", occurrences: 10, lat: -3.3925, lon: -44.3586 },
-  { up: "UP-Munim", occurrences: 6, lat: -2.7586, lon: -42.8259 },
-  { up: "UP-Mearim", occurrences: 14, lat: -4.2250, lon: -44.7833 },
-  { up: "UP-Pindare", occurrences: 18, lat: -3.6667, lon: -45.3800 },
-  { up: "UP-SertaoLeste", occurrences: 23, lat: -4.8580, lon: -43.3560 },
-  { up: "UP-Tocantina", occurrences: 28, lat: -5.5264, lon: -47.4919 },
-  { up: "UP-CarajasNorte", occurrences: 34, lat: -4.9471, lon: -47.5036 },
-  { up: "UP-GeraisSul", occurrences: 41, lat: -7.5321, lon: -46.0374 },
-  { up: "UP-Cocais", occurrences: 52, lat: -5.0942, lon: -42.8369 },
-  { up: "UP-CentroNorte", occurrences: 31, lat: -5.9919, lon: -43.7033 },
-  { up: "UP-Chapadas", occurrences: 58, lat: -6.0281, lon: -44.2495 }
+  { up: "UP-CampoGrande", occurrences: 9, lat: -20.4697, lon: -54.6201 },
+  { up: "UP-Corumba", occurrences: 7, lat: -19.0094, lon: -57.6533 },
+  { up: "UP-Paranaiba", occurrences: 10, lat: -19.6774, lon: -51.1909 },
+  { up: "UP-Dourados", occurrences: 14, lat: -22.2231, lon: -54.8120 },
+  { up: "UP-TresLagoas", occurrences: 17, lat: -20.7874, lon: -51.7037 },
+  { up: "UP-Coxim", occurrences: 25, lat: -18.5031, lon: -54.7503 },
+  { up: "UP-PontaPora", occurrences: 27, lat: -22.5361, lon: -55.7256 },
+  { up: "UP-Aquidauana", occurrences: 33, lat: -20.4715, lon: -55.7877 },
+  { up: "UP-Jardim", occurrences: 41, lat: -21.4803, lon: -56.1381 },
+  { up: "UP-Bonito", occurrences: 49, lat: -21.1261, lon: -56.4836 },
+  { up: "UP-Navirai", occurrences: 32, lat: -23.0660, lon: -54.1993 },
+  { up: "UP-Amambai", occurrences: 58, lat: -23.1063, lon: -55.2253 }
 ];
 
 const svg = d3.select("#chart");
@@ -40,9 +40,9 @@ mapLayer.append("rect")
   .attr("width", WIDTH)
   .attr("height", HEIGHT);
 
-d3.json(MA_GEOJSON_URL).then((geojson) => {
+d3.json(MS_GEOJSON_URL).then((geojson) => {
   if (!geojson || !Array.isArray(geojson.features) || geojson.features.length === 0) {
-    throw new Error("GeoJSON de MA invalido.");
+    throw new Error("GeoJSON de MS invalido.");
   }
 
   const projection = d3.geoMercator().fitExtent(
@@ -74,7 +74,7 @@ d3.json(MA_GEOJSON_URL).then((geojson) => {
       d3.select(event.currentTarget).classed("is-active", true);
       const municipalityName = d.properties?.name ?? "Municipio";
       tooltip
-        .html(`<strong>${municipalityName}</strong><br/>Estado: Maranhao`)
+        .html(`<strong>${municipalityName}</strong><br/>Estado: Mato Grosso do Sul`)
         .style("left", `${event.offsetX + 14}px`)
         .style("top", `${event.offsetY + 14}px`)
         .attr("hidden", null);
@@ -96,7 +96,7 @@ d3.json(MA_GEOJSON_URL).then((geojson) => {
       .attr("class", "ma-state-label")
       .attr("x", stateCentroid[0])
       .attr("y", stateCentroid[1])
-      .text("MARANHAO");
+      .text("MATO GROSSO DO SUL");
   }
 
   const radiusScale = d3.scaleSqrt()
@@ -171,13 +171,13 @@ d3.json(MA_GEOJSON_URL).then((geojson) => {
     svg.transition().duration(260).call(zoomBehavior.transform, d3.zoomIdentity);
   });
 }).catch((err) => {
-  console.error("Erro ao carregar mapa de MA:", err);
+  console.error("Erro ao carregar mapa de MS:", err);
   svg.append("text")
     .attr("x", WIDTH / 2)
     .attr("y", HEIGHT / 2)
     .attr("text-anchor", "middle")
     .attr("class", "map-error")
-    .text("Nao foi possivel carregar o mapa de MA");
+    .text("Nao foi possivel carregar o mapa de MS");
 });
 
 function translateBucket(bucket) {
