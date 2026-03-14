@@ -1,32 +1,64 @@
-# ponderada_graphs
+# Ideia 2 - UPs Mais Requisitadas no Mapa (MS)
 
-## Ideia 2 - UPs mais requisitadas no mapa do MS
+**Dupla responsavel:** Nicole e Bernardo
 
-### Relevancia
-Esta visualizacao ajuda a identificar rapidamente quais UPs recebem mais ocorrencias e quais recebem menos.
-Com isso, fica mais facil priorizar reforco operacional e comunicar o cenario de forma clara.
 
-### Como ler o mapa
-- Ponto azul: UP com 1-10 ocorrencias
-- Ponto amarelo: UP com 11-25 ocorrencias
-- Ponto vermelho: UP com 26-60 ocorrencias
-- Quanto maior o circulo, maior a quantidade de ocorrencias
+## 1. Objetivo da Visualizacao
 
-### Explicacao tecnica 
-- D3.js renderiza o mapa real do Mato Grosso do Sul via GeoJSON (municipios)
-- A projecao geografica converte latitude/longitude para posicoes no SVG
-- Cada UP e desenhada como um ponto com cor por faixa e tamanho proporcional ao volume
+O objetivo principal desta ferramenta e apresentar, de forma geografica e intuitiva, onde estao as UPs com maior e menor volume de ocorrencias.
 
-### Estrutura dos dados das UPs
-Cada UP possui:
+A visualizacao permite identificar rapidamente:
+* Quais UPs estao em cada faixa de ocorrencia.
+* A intensidade relativa de ocorrencias por UP, representada pelo tamanho do circulo.
+* A distribuicao espacial das unidades dentro do territorio do MS.
+
+## 2. Meios e Tecnologias Utilizadas
+
+| Componente | Tecnologia | Descricao |
+| :--- | :--- | :--- |
+| **Estrutura** | HTML5 | Define a pagina, o container do mapa e os controles de interacao. |
+| **Estilizacao** | CSS3 | Aplica paleta visual, destaque dos pontos e layout responsivo. |
+| **Graficos** | SVG | Garante renderizacao vetorial e nitida do mapa e dos pontos. |
+| **Biblioteca Base** | [D3.js (v7)](https://d3js.org/) | Faz carga de dados, projecao geografica, desenho dos municipios e interatividade. |
+| **Logica** | JavaScript (ES6+) | Controla faixas de cor, escala de tamanho, tooltip e zoom/pan. |
+| **Dados Geograficos** | GeoJSON (geodata-br) | Poligonos reais dos municipios do Mato Grosso do Sul. |
+
+## 3. Componentes da Visualizacao
+
+### 3.1. Mapa geografico de base
+O mapa exibe os municipios reais do MS como referencia espacial para leitura dos pontos de UP.
+
+### 3.2. Paleta de cores por faixa de ocorrencia
+Para facilitar a leitura rapida, foi aplicada uma classificacao fixa:
+* **Azul (`#4285f4`):** de 1 a 10 ocorrencias.
+* **Amarelo (`#fbbc04`):** de 11 a 25 ocorrencias.
+* **Vermelho (`#d93025`):** de 26 a 60 ocorrencias.
+
+### 3.3. Interatividade
+A visualizacao oferece recursos de exploracao:
+* **Tooltip em municipios:** exibe o nome do municipio ao passar o mouse.
+* **Tooltip em UPs:** exibe UP, ocorrencias e faixa de classificacao.
+* **Zoom e pan:** navegacao por scroll, arraste e botoes (`+`, `-`, `Reset`).
+* **Destaque visual:** municipio em hover fica ressaltado para facilitar leitura.
+
+## 4. Estrutura de Dados
+
+O mapa consome duas fontes principais:
+* `GeoJSON`: municipios do MS.
+* `UP_POINTS`: lista das unidades com ocorrencias.
+
+Cada UP e representada por um objeto com:
 
 | Campo | Descricao |
-|---|---|
+| :--- | :--- |
 | `up` | Nome/identificador da UP |
-| `lat` e `lon` | Coordenadas geograficas |
+| `lat` / `lon` | Coordenadas geograficas |
 | `occurrences` | Quantidade de ocorrencias |
 
-### Possiveis evolucoes
-- Carregar dados reais por API
-- Adicionar filtros por faixa de ocorrencias
-- Permitir clique na UP para abrir detalhes operacionais
+## 5. Possiveis Evolucoes
+
+* Integracao com API para atualizacao automatica das ocorrencias.
+* Filtros por faixa, regiao ou municipio.
+* Painel lateral com ranking das UPs.
+
+
