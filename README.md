@@ -4,8 +4,6 @@
 
 ---
 
-## Relevância
-
 A distribuição de recursos por Unidade de Patrulhamento (UP) é uma informação estratégica para qualquer operação de campo. Saber onde estão concentrados os recursos — e onde há escassez — é o primeiro passo para uma alocação mais eficiente.
 
 O **Mapa 3D de Recursos por UP** transforma essa informação em uma visualização geográfica e interativa, permitindo que gestores identifiquem instantaneamente quais regiões estão bem cobertas e quais demandam atenção. Ao representar os dados como colunas tridimensionais sobre o mapa real do Mato Grosso do Sul, o usuário consegue comparar UPs não apenas por números, mas pela sua posição no território.
@@ -19,7 +17,7 @@ Essa abordagem contribui para diferentes níveis de decisão:
 
 ---
 
-## Como usar
+### Como usar
 
 A visualização é totalmente interativa e funciona diretamente no navegador, sem necessidade de instalação.
 
@@ -33,7 +31,7 @@ A legenda no canto superior esquerdo identifica cada UP pela cor correspondente 
 
 ---
 
-## Como ler o mapa
+### Como ler o mapa
 
 O mapa comunica a informação por meio de dois elementos visuais principais:
 
@@ -43,7 +41,7 @@ O mapa comunica a informação por meio de dois elementos visuais principais:
 
 ---
 
-## Explicação Técnica
+### Explicação Técnica
 
 A implementação combina duas bibliotecas JavaScript para entregar uma experiência geográfica e tridimensional ao mesmo tempo.
 
