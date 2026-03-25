@@ -12,8 +12,9 @@
     <header class="header">
       <h1>UPs Mais Requisitadas</h1>
       <p>
-        Visualizacao em D3 com mapa real do Mato Grosso do Sul (GeoJSON), pontos com tamanho por ocorrencias
-        e navegacao interativa (zoom e pan).
+        Visualizacao em D3 que mostra, no mapa do Mato Grosso do Sul, quais Unidades de Producao concentram
+        mais ocorrencias no conjunto de dados. O objetivo e comparar demanda regional e facilitar a descoberta
+        das UPs mais requisitadas.
       </p>
     </header>
 
@@ -27,14 +28,30 @@
       <div id="tooltip" class="tooltip" hidden></div>
     </section>
 
-    <aside class="legend" aria-label="Legenda de cores">
-      <h2>Legenda</h2>
-      <ul>
-        <li><span class="dot low"></span>Azul: 1-10 ocorrencias</li>
-        <li><span class="dot medium"></span>Amarelo: 11-25 ocorrencias</li>
-        <li><span class="dot high"></span>Vermelho: 26-60 ocorrencias</li>
-      </ul>
-    </aside>
+    <section class="info-grid">
+      <aside class="legend" aria-label="Legenda de cores">
+        <h2>Legenda e interacoes</h2>
+        <ul>
+          <li><span class="dot low"></span>Azul: 1-10 ocorrencias</li>
+          <li><span class="dot medium"></span>Amarelo: 11-25 ocorrencias</li>
+          <li><span class="dot high"></span>Vermelho: 26-60 ocorrencias</li>
+        </ul>
+        <p>
+          O tamanho do circulo cresce conforme o numero de ocorrencias. Use zoom e pan para navegar, clique no
+          mapa para acionar o picking da UP mais proxima e use Shift + arrastar para criar uma caixa de brush.
+        </p>
+      </aside>
+
+      <aside class="selection-panel" aria-label="Resumo da selecao atual">
+        <h2>Selecao atual</h2>
+        <p><strong>UP:</strong> <span id="selected-name">Carregando...</span></p>
+        <p><strong>Ocorrencias:</strong> <span id="selected-count">-</span></p>
+        <p><strong>Faixa:</strong> <span id="selected-range">-</span></p>
+        <p id="selection-hint" class="selection-hint">
+          Clique no mapa para selecionar a UP mais proxima ou use Shift + arrastar para criar uma caixa de brush.
+        </p>
+      </aside>
+    </section>
   </main>
 
   <script src="app.js"></script>
