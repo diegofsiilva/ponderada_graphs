@@ -29,16 +29,9 @@ const tooltip = d3.select("#tooltip");
 const zoomInButton = d3.select("#zoom-in");
 const zoomOutButton = d3.select("#zoom-out");
 const zoomResetButton = d3.select("#zoom-reset");
-const selectedName = d3.select("#selected-name");
-const selectedCount = d3.select("#selected-count");
-const selectedRange = d3.select("#selected-range");
-const selectionHint = d3.select("#selection-hint");
 const viewport = svg.append("g").attr("class", "viewport");
 const mapLayer = viewport.append("g").attr("class", "map-layer");
 const pointLayer = viewport.append("g").attr("class", "point-layer");
-const interactionLayer = svg.append("g").attr("class", "interaction-layer");
-
-let currentTransform = d3.zoomIdentity;
 
 mapLayer.append("rect")
   .attr("class", "map-google-water")
@@ -124,151 +117,42 @@ d3.json(MS_GEOJSON_URL).then((geojson) => {
     d.y = xy ? xy[1] : HEIGHT / 2;
   });
 
-  const pointIndex = d3.quadtree()
-    .x((d) => d.x)
-    .y((d) => d.y)
-    .addAll(UP_POINTS);
-
   const points = pointLayer.selectAll("g.up-point")
     .data(UP_POINTS)
     .join("g")
     .attr("class", "up-point")
-    .attr("transform", (d) => `translate(${d.x},${d.y})`);
+    .attr("transform", (d) => `translate(${d.x},${d.y})`)
+    .on("mousemove", (event, d) => {
+      tooltip
+        .html(`<strong>${d.up}</strong><br/>Ocorrencias: ${d.occurrences}<br/>Faixa: ${translateBucket(d.bucket)}`)
+        .style("left", `${event.offsetX + 14}px`)
+        .style("top", `${event.offsetY + 14}px`)
+        .attr("hidden", null);
+    })
+    .on("mouseleave", () => {
+      tooltip.attr("hidden", true);
+    });
 
   points.append("circle")
     .attr("class", "up-point-outer")
-    .attr("r", 0)
-    .attr("fill", (d) => COLORS[d.bucket])
-    .transition()
-    .duration(700)
-    .delay((_, i) => i * 70)
-    .attr("r", (d) => d.radius);
+    .attr("r", (d) => d.radius)
+    .attr("fill", (d) => COLORS[d.bucket]);
 
   points.append("circle")
     .attr("class", "up-point-core")
-    .attr("r", 0)
-    .attr("fill", "#ffffff")
-    .transition()
-    .duration(700)
-    .delay((_, i) => 140 + (i * 70))
-    .attr("r", (d) => Math.max(3, d.radius * 0.34));
+    .attr("r", (d) => Math.max(3, d.radius * 0.34))
+    .attr("fill", "#ffffff");
 
   points.append("text")
     .attr("class", "up-point-label")
     .attr("y", (d) => -(d.radius + 6))
-    .style("opacity", 0)
     .text((d) => d.up);
-
-  points.select("text")
-    .transition()
-    .duration(450)
-    .delay((_, i) => 360 + (i * 45))
-    .style("opacity", 1);
-
-  const brushBehavior = d3.brush()
-    .extent([[0, 0], [WIDTH, HEIGHT]])
-    .filter((event) => event.shiftKey && !event.button)
-    .on("start brush", ({ selection }) => {
-      if (!selection) {
-        points.classed("is-brushed", false);
-        selectionHint.text("Clique no mapa para selecionar a UP mais proxima ou use Shift + arrastar para criar uma caixa de brush.");
-        return;
-      }
-
-      const [[x0, y0], [x1, y1]] = selection;
-      const brushed = [];
-
-      points.classed("is-brushed", (d) => {
-        const px = currentTransform.applyX(d.x);
-        const py = currentTransform.applyY(d.y);
-        const isInside = x0 <= px && px <= x1 && y0 <= py && py <= y1;
-
-        if (isInside) {
-          brushed.push(d);
-        }
-
-        return isInside;
-      });
-
-      if (brushed.length > 0) {
-        const topPoint = brushed.reduce((max, point) => point.occurrences > max.occurrences ? point : max, brushed[0]);
-        setActivePoint(topPoint, `${brushed.length} UP(s) dentro da area selecionada.`);
-      } else {
-        selectionHint.text("Nenhuma UP encontrada dentro da area do brush.");
-      }
-    })
-    .on("end", ({ selection }) => {
-      if (!selection) {
-        points.classed("is-brushed", false);
-      }
-    });
-
-  interactionLayer
-    .append("g")
-    .attr("class", "brush-layer")
-    .call(brushBehavior);
-
-  svg.on("mousemove", (event) => {
-    if (event.shiftKey && event.buttons === 1) {
-      tooltip.attr("hidden", true);
-      return;
-    }
-
-    const [screenX, screenY] = d3.pointer(event, svg.node());
-    const worldX = currentTransform.invertX(screenX);
-    const worldY = currentTransform.invertY(screenY);
-    const nearest = pointIndex.find(worldX, worldY);
-
-    if (!nearest) {
-      tooltip.attr("hidden", true);
-      return;
-    }
-
-    const dx = currentTransform.applyX(nearest.x) - screenX;
-    const dy = currentTransform.applyY(nearest.y) - screenY;
-    const distance = Math.hypot(dx, dy);
-
-    if (distance <= Math.max(28, nearest.radius + 12)) {
-      tooltip
-        .html(`<strong>${nearest.up}</strong><br/>Ocorrencias: ${nearest.occurrences}<br/>Faixa: ${translateBucket(nearest.bucket)}`)
-        .style("left", `${screenX + 14}px`)
-        .style("top", `${screenY + 14}px`)
-        .attr("hidden", null);
-      return;
-    }
-
-    tooltip.attr("hidden", true);
-  });
-
-  svg.on("mouseleave", () => {
-    tooltip.attr("hidden", true);
-  });
-
-  svg.on("click", (event) => {
-    const [screenX, screenY] = d3.pointer(event, svg.node());
-    const worldX = currentTransform.invertX(screenX);
-    const worldY = currentTransform.invertY(screenY);
-    const nearest = pointIndex.find(worldX, worldY);
-
-    if (!nearest) {
-      return;
-    }
-
-    const dx = currentTransform.applyX(nearest.x) - screenX;
-    const dy = currentTransform.applyY(nearest.y) - screenY;
-    const distance = Math.hypot(dx, dy);
-
-    if (distance <= Math.max(24, nearest.radius + 12)) {
-      setActivePoint(nearest, "UP encontrada por picking com quadtree().");
-    }
-  });
 
   const zoomBehavior = d3.zoom()
     .scaleExtent([1, 6])
     .translateExtent([[-300, -220], [WIDTH + 300, HEIGHT + 220]])
     .extent([[0, 0], [WIDTH, HEIGHT]])
     .on("zoom", (event) => {
-      currentTransform = event.transform;
       viewport.attr("transform", event.transform);
     });
 
@@ -286,20 +170,6 @@ d3.json(MS_GEOJSON_URL).then((geojson) => {
   zoomResetButton.on("click", () => {
     svg.transition().duration(260).call(zoomBehavior.transform, d3.zoomIdentity);
   });
-
-  setActivePoint(
-    UP_POINTS.reduce((max, point) => point.occurrences > max.occurrences ? point : max, UP_POINTS[0]),
-    "UP com maior numero de ocorrencias no conjunto de dados."
-  );
-
-  function setActivePoint(point, hintText) {
-    points.classed("is-selected", (d) => d.up === point.up);
-
-    selectedName.text(point.up);
-    selectedCount.text(point.occurrences);
-    selectedRange.text(translateBucket(point.bucket));
-    selectionHint.text(hintText);
-  }
 }).catch((err) => {
   console.error("Erro ao carregar mapa de MS:", err);
   svg.append("text")
